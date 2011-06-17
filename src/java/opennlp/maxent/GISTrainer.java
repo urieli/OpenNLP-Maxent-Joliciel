@@ -49,9 +49,10 @@ import opennlp.model.UniformPrior;
  *    
  * @author Tom Morton
  * @author  Jason Baldridge
+ * @author Assaf Urieli for Joliciel updates
  * @version $Revision: 1.7 $, $Date: 2010/09/06 08:02:18 $
  */
-class GISTrainer {
+public class GISTrainer {
 
   /**
    * Specifies whether unseen context/outcome pairs should be estimated as occur very infrequently.
@@ -154,7 +155,7 @@ class GISTrainer {
    * @param printMessages sends progress messages about training to
    *                      STDOUT when true; trains silently otherwise.
    */
-  GISTrainer(boolean printMessages) {
+  public GISTrainer(boolean printMessages) {
     this();
     this.printMessages = printMessages;
   }
@@ -240,7 +241,9 @@ class GISTrainer {
     //printTable(contexts);
 
     // determine the correction constant and its inverse
-    int correctionConstant = 1;
+    // Assaf: changed this from int to float, default to 0
+    //int correctionConstant = 1;
+    float correctionConstant = 0;
     for (int ci = 0; ci < contexts.length; ci++) {
       if (values == null || values[ci] == null) {
         if (contexts[ci].length > correctionConstant) {
@@ -254,7 +257,8 @@ class GISTrainer {
         }
         
         if (cl > correctionConstant) {
-          correctionConstant=(int) Math.ceil(cl);
+          //correctionConstant=(int) Math.ceil(cl);
+          correctionConstant= cl;
         }
       }
     }
@@ -390,7 +394,7 @@ class GISTrainer {
   }
 
   /* Estimate and return the model parameters. */
-  private void findParameters(int iterations, int correctionConstant) {
+  private void findParameters(int iterations, float correctionConstant) {
     double prevLL = 0.0;
     double currLL = 0.0;
     display("Performing " + iterations + " iterations.\n");
@@ -449,7 +453,7 @@ class GISTrainer {
   }
   
   /* Compute one iteration of GIS and retutn log-likelihood.*/
-  private double nextIteration(int correctionConstant) {
+  private double nextIteration(float correctionConstant) {
     // compute contribution of p(a|b_i) for each feature and the new
     // correction parameter
     double loglikelihood = 0.0;
