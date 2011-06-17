@@ -121,7 +121,6 @@ public class TwoPassDataIndexer extends AbstractDataIndexer{
     while (eventStream.hasNext()) {
       Event ev = eventStream.next();
       eventCount++;
-      //TODO - FileEventStream needs to write values as well, later we'll need to read them.
       eventStore.write(FileEventStream.toLine(ev));
       String[] ec = ev.getContext();
       update(ec,predicateSet,counter,cutoff);
@@ -137,7 +136,7 @@ public class TwoPassDataIndexer extends AbstractDataIndexer{
     return eventCount;
   }
 
-  protected List index(int numEvents, EventStream es, Map<String,Integer> predicateIndex) throws IOException {
+  private List index(int numEvents, EventStream es, Map<String,Integer> predicateIndex) throws IOException {
     Map<String,Integer> omap = new HashMap<String,Integer>();
     int outcomeCount = 0;
     List eventsToCompare = new ArrayList(numEvents);

@@ -82,27 +82,11 @@ public class FileEventStream extends  AbstractEventStream {
     StringTokenizer st = new StringTokenizer(line);
     String outcome = st.nextToken();
     int count = st.countTokens();
-    boolean hasValues = line.contains("=");
     String[] context = new String[count];
-    float[] values = null;
-    if (hasValues)
-    	values = new float[count];
     for (int ci = 0; ci < count; ci++) {
-    	String token = st.nextToken();
-    	if (hasValues) {
-    		int equalsPos = token.indexOf('=');
-    		context[ci] = token.substring(0, equalsPos);
-    		values[ci] = Float.parseFloat(token.substring(equalsPos+1));
-    	} else {
-    		context[ci] = token;
-    	}
+      context[ci] = st.nextToken();
     }
-    Event event = null;
-    if (hasValues)
-    	event = new Event(outcome, context, values);
-    else
-    	event = new Event(outcome, context);
-    return event;
+    return (new Event(outcome, context));
   }
   
   /**
@@ -114,11 +98,8 @@ public class FileEventStream extends  AbstractEventStream {
     StringBuffer sb = new StringBuffer();
     sb.append(event.getOutcome());
     String[] context = event.getContext();
-    float[] values = event.getValues();
     for (int ci=0,cl=context.length;ci<cl;ci++) {
       sb.append(" "+context[ci]);
-      if (values!=null)
-    	  sb.append("="+values[ci]);
     }
     sb.append(System.getProperty("line.separator"));
     return sb.toString();

@@ -51,7 +51,7 @@ import opennlp.model.UniformPrior;
  * @author  Jason Baldridge
  * @version $Revision: 1.7 $, $Date: 2010/09/06 08:02:18 $
  */
-public class GISTrainer {
+class GISTrainer {
 
   /**
    * Specifies whether unseen context/outcome pairs should be estimated as occur very infrequently.
@@ -154,7 +154,7 @@ public class GISTrainer {
    * @param printMessages sends progress messages about training to
    *                      STDOUT when true; trains silently otherwise.
    */
-  public GISTrainer(boolean printMessages) {
+  GISTrainer(boolean printMessages) {
     this();
     this.printMessages = printMessages;
   }
@@ -239,7 +239,6 @@ public class GISTrainer {
     this.prior = modelPrior;
     //printTable(contexts);
 
-    /*
     // determine the correction constant and its inverse
     int correctionConstant = 1;
     for (int ci = 0; ci < contexts.length; ci++) {
@@ -256,28 +255,6 @@ public class GISTrainer {
         
         if (cl > correctionConstant) {
           correctionConstant=(int) Math.ceil(cl);
-        }
-      }
-    }
-    */
-    // determine the correction constant and its inverse
-    //int correctionConstant = 1;
-    float correctionConstant = 0;
-    for (int ci = 0; ci < contexts.length; ci++) {
-      if (values == null || values[ci] == null) {
-        if (contexts[ci].length > correctionConstant) {
-          correctionConstant = contexts[ci].length;
-        }
-      }
-      else {
-        float cl = values[ci][0];
-        for (int vi=1;vi<values[ci].length;vi++) {
-          cl+=values[ci][vi];
-        }
-        
-        if (cl > correctionConstant) {
-          //correctionConstant=(int) Math.ceil(cl);
-          correctionConstant= cl;
         }
       }
     }
@@ -413,7 +390,7 @@ public class GISTrainer {
   }
 
   /* Estimate and return the model parameters. */
-  private void findParameters(int iterations, float correctionConstant) {
+  private void findParameters(int iterations, int correctionConstant) {
     double prevLL = 0.0;
     double currLL = 0.0;
     display("Performing " + iterations + " iterations.\n");
@@ -472,7 +449,7 @@ public class GISTrainer {
   }
   
   /* Compute one iteration of GIS and retutn log-likelihood.*/
-  private double nextIteration(float correctionConstant) {
+  private double nextIteration(int correctionConstant) {
     // compute contribution of p(a|b_i) for each feature and the new
     // correction parameter
     double loglikelihood = 0.0;
