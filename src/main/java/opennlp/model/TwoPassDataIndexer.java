@@ -42,6 +42,8 @@ import java.util.Set;
  * will be used.  This greatly reduces the amount of memory required for storing
  * the events.  During the first pass a temporary event file is created which
  * is read during the second pass.
+ * 
+ * @author Assaf Urieli for Joliciel updates
  */
 public class TwoPassDataIndexer extends AbstractDataIndexer{
 
@@ -136,7 +138,7 @@ public class TwoPassDataIndexer extends AbstractDataIndexer{
     return eventCount;
   }
 
-  private List index(int numEvents, EventStream es, Map<String,Integer> predicateIndex) throws IOException {
+  protected List index(int numEvents, EventStream es, Map<String,Integer> predicateIndex) throws IOException {
     Map<String,Integer> omap = new HashMap<String,Integer>();
     int outcomeCount = 0;
     List eventsToCompare = new ArrayList(numEvents);
