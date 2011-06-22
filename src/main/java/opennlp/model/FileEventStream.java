@@ -34,7 +34,6 @@ import opennlp.maxent.io.SuffixSensitiveGISModelWriter;
  * Class for using a file of events as an event stream.  The format of the file is one event perline with
  * each line consisting of outcome followed by contexts (space delimited).
  * @author Tom Morton
- * @author Assaf Urieli for Joliciel updates
  *
  */
 public class FileEventStream extends  AbstractEventStream {
@@ -83,28 +82,11 @@ public class FileEventStream extends  AbstractEventStream {
     StringTokenizer st = new StringTokenizer(line);
     String outcome = st.nextToken();
     int count = st.countTokens();
-    // Assaf update: read real values from file
-    boolean hasValues = line.contains("=");
     String[] context = new String[count];
-    float[] values = null;
-    if (hasValues)
-    	values = new float[count];
     for (int ci = 0; ci < count; ci++) {
-    	String token = st.nextToken();
-    	if (hasValues) {
-    		int equalsPos = token.indexOf('=');
-    		context[ci] = token.substring(0, equalsPos);
-    		values[ci] = Float.parseFloat(token.substring(equalsPos+1));
-    	} else {
-    		context[ci] = token;
-    	}
+      context[ci] = st.nextToken();
     }
-    Event event = null;
-    if (hasValues)
-    	event = new Event(outcome, context, values);
-    else
-    	event = new Event(outcome, context);
-    return event;
+    return (new Event(outcome, context));
   }
   
   /**
@@ -116,12 +98,8 @@ public class FileEventStream extends  AbstractEventStream {
     StringBuffer sb = new StringBuffer();
     sb.append(event.getOutcome());
     String[] context = event.getContext();
-    // Assaf: write real values to file
-    float[] values = event.getValues();
     for (int ci=0,cl=context.length;ci<cl;ci++) {
       sb.append(" "+context[ci]);
-      if (values!=null)
-    	  sb.append("="+values[ci]);
     }
     sb.append(System.getProperty("line.separator"));
     return sb.toString();
