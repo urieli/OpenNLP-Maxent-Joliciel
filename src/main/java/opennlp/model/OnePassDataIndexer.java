@@ -30,6 +30,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 
 /**
  * An indexer for maxent model data which handles cutoffs for uncommon
@@ -40,6 +43,7 @@ import java.util.Set;
  * @version $Revision: 1.3 $, $Date: 2010/09/06 08:02:18 $
  */
 public class OnePassDataIndexer extends AbstractDataIndexer  {
+    private static final Log LOG = LogFactory.getLog(OnePassDataIndexer.class);
 
     /**
      * One argument constructor for DataIndexer which calls the two argument
@@ -68,24 +72,24 @@ public class OnePassDataIndexer extends AbstractDataIndexer  {
         LinkedList<Event> events;
         List eventsToCompare;
 
-        System.out.println("Indexing events using cutoff of " + cutoff + "\n");
+        LOG.info("Indexing events using cutoff of " + cutoff + "\n");
 
-        System.out.print("\tComputing event counts...  ");
+        LOG.info("Computing event counts...  ");
         events = computeEventCounts(eventStream,predicateIndex,cutoff);
-        System.out.println("done. "+events.size()+" events");
+        LOG.info("done. "+events.size()+" events");
 
-        System.out.print("\tIndexing...  ");
+        LOG.info("Indexing...  ");
         eventsToCompare = index(events,predicateIndex);
         // done with event list
         events = null;
         // done with predicates
         predicateIndex = null;
 
-        System.out.println("done.");
+        LOG.info("done.");
 
-        System.out.print("Sorting and merging events... ");
+        LOG.info("Sorting and merging events... ");
         sortAndMerge(eventsToCompare,sort);
-        System.out.println("Done indexing.");
+        LOG.info("Done indexing.");
     }
 
 
@@ -161,7 +165,7 @@ public class OnePassDataIndexer extends AbstractDataIndexer  {
                 eventsToCompare.add(ce);
             }
             else {
-              System.err.println("Dropped event "+ev.getOutcome()+":"+Arrays.asList(ev.getContext()));
+            	LOG.debug("Dropped event "+ev.getOutcome()+":"+Arrays.asList(ev.getContext()));
             }
             // recycle the TIntArrayList
             indexedContext.clear();

@@ -34,6 +34,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 
 /**
  * Collecting event and context counts by making two passes over the events.  The
@@ -46,6 +49,7 @@ import java.util.Set;
  * @author Assaf Urieli for Joliciel updates
  */
 public class TwoPassDataIndexer extends AbstractDataIndexer{
+    private static final Log LOG = LogFactory.getLog(TwoPassDataIndexer.class);
 
   /**
    * One argument constructor for DataIndexer which calls the two argument
@@ -73,35 +77,35 @@ public class TwoPassDataIndexer extends AbstractDataIndexer{
     Map<String,Integer> predicateIndex = new HashMap<String,Integer>();
     List eventsToCompare;
 
-    System.out.println("Indexing events using cutoff of " + cutoff + "\n");
+    LOG.info("Indexing events using cutoff of " + cutoff + "\n");
 
-    System.out.print("\tComputing event counts...  ");
+    LOG.info("Computing event counts...  ");
     try {
       File tmp = File.createTempFile("events", null);
       tmp.deleteOnExit();
       Writer osw = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(tmp),"UTF8"));
       int numEvents = computeEventCounts(eventStream, osw, predicateIndex, cutoff);
-      System.out.println("done. " + numEvents + " events");
+      LOG.info("done. " + numEvents + " events");
 
-      System.out.print("\tIndexing...  ");
+      LOG.info("Indexing...  ");
 
       eventsToCompare = index(numEvents, new FileEventStream(tmp), predicateIndex);
       // done with predicates
       predicateIndex = null;
       tmp.delete();
-      System.out.println("done.");
+      LOG.info("done.");
 
       if (sort) { 
-        System.out.print("Sorting and merging events... ");
+    	  LOG.info("Sorting and merging events... ");
       }
       else {
-        System.out.print("Collecting events... ");
+    	  LOG.info("Collecting events... ");
       }
       sortAndMerge(eventsToCompare,sort);
-      System.out.println("Done indexing.");
+      LOG.info("Done indexing.");
     }
     catch(IOException e) {
-      System.err.println(e);
+    	LOG.error(e);
     }
   }
 
@@ -176,7 +180,7 @@ public class TwoPassDataIndexer extends AbstractDataIndexer{
         eventsToCompare.add(ce);
       }
       else {
-        System.err.println("Dropped event " + ev.getOutcome() + ":" + Arrays.asList(ev.getContext()));
+        LOG.debug("Dropped event " + ev.getOutcome() + ":" + Arrays.asList(ev.getContext()));
       }
       // recycle the TIntArrayList
       indexedContext.clear();

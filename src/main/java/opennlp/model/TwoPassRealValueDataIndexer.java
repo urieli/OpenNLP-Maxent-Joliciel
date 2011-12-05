@@ -25,12 +25,16 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 /**
  * Extends TwoPassDataIndexer to take into account real values.
  * @author Assaf Urieli
  *
  */
 public class TwoPassRealValueDataIndexer extends TwoPassDataIndexer {
+    private static final Log LOG = LogFactory.getLog(TwoPassRealValueDataIndexer.class);
 	float[][] values;
 
 	public TwoPassRealValueDataIndexer(EventStream eventStream, int cutoff)
@@ -101,7 +105,7 @@ public class TwoPassRealValueDataIndexer extends TwoPassDataIndexer {
 	        eventsToCompare.add(ce);
 	      }
 	      else {
-	        System.err.println("Dropped event " + ev.getOutcome() + ":" + Arrays.asList(ev.getContext()));
+	        LOG.debug("Dropped event " + ev.getOutcome() + ":" + Arrays.asList(ev.getContext()));
 	      }
 	      // recycle the TIntArrayList
 	      indexedContext.clear();

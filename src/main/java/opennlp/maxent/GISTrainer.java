@@ -21,6 +21,9 @@ package opennlp.maxent;
 
 import java.io.IOException;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import opennlp.model.DataIndexer;
 import opennlp.model.EvalParameters;
 import opennlp.model.EventStream;
@@ -53,6 +56,8 @@ import opennlp.model.UniformPrior;
  * @version $Revision: 1.7 $, $Date: 2010/09/06 08:02:18 $
  */
 public class GISTrainer {
+    private static final Log LOG = LogFactory.getLog(GISTrainer.class);
+    private String currentMessage = "";
 
   /**
    * Specifies whether unseen context/outcome pairs should be estimated as occur very infrequently.
@@ -408,7 +413,7 @@ public class GISTrainer {
       currLL = nextIteration(correctionConstant);
       if (i > 1) {
         if (prevLL > currLL) {
-          System.err.println("Model Diverging: loglikelihood decreased");
+          LOG.error("Model Diverging: loglikelihood decreased");
           break;
         }
         if (currLL - prevLL < LLThreshold) {
@@ -538,8 +543,13 @@ public class GISTrainer {
   }
 
   private void display(String s) {
-    if (printMessages)
-      System.out.print(s);
+    if (printMessages) {
+    	currentMessage += s;
+    	if (s.endsWith("\n")) {
+    		LOG.debug(currentMessage.substring(0, currentMessage.length()-1));
+    		currentMessage = "";
+    	}
+    }
   }
 
 }

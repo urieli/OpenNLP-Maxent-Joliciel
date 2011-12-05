@@ -27,6 +27,9 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.StringTokenizer;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import opennlp.maxent.GIS;
 import opennlp.maxent.io.SuffixSensitiveGISModelWriter;
 
@@ -38,6 +41,7 @@ import opennlp.maxent.io.SuffixSensitiveGISModelWriter;
  *
  */
 public class FileEventStream extends  AbstractEventStream {
+    private static final Log LOG = LogFactory.getLog(FileEventStream.class);
 
   BufferedReader reader;
   String line;
@@ -74,7 +78,7 @@ public class FileEventStream extends  AbstractEventStream {
       return (null != (line = reader.readLine()));
     }
     catch (IOException e) {
-      System.err.println(e);
+      LOG.error(e);
       return (false);
     }
   }
@@ -82,6 +86,11 @@ public class FileEventStream extends  AbstractEventStream {
   public Event next() {
     StringTokenizer st = new StringTokenizer(line);
     String outcome = st.nextToken();
+    if (outcome.equals("&null;"))
+    	outcome = "";
+    else if (outcome.equals("&space;"))
+    	outcome = " ";
+    
     int count = st.countTokens();
     // Assaf update: read real values from file
     boolean hasValues = line.contains("=");
@@ -93,6 +102,12 @@ public class FileEventStream extends  AbstractEventStream {
     	String token = st.nextToken();
     	if (hasValues) {
     		int equalsPos = token.lastIndexOf('=');
+    		if (equalsPos<0) {
+    			LOG.error("Missing value");
+    			LOG.error("Line: " + line);
+    			LOG.error("Token: " + token);
+    			throw new RuntimeException("Missing value, on token \"" + token + "\"");
+    		}
     		context[ci] = token.substring(0, equalsPos);
     		values[ci] = Float.parseFloat(token.substring(equalsPos+1));
     	} else {
@@ -114,7 +129,12 @@ public class FileEventStream extends  AbstractEventStream {
    */
   public static String toLine(Event event) {
     StringBuffer sb = new StringBuffer();
-    sb.append(event.getOutcome());
+    String outcome = event.getOutcome();
+    if (outcome.length()==0)
+    	outcome = "&null;";
+    else if (outcome.equals(" "))
+    	outcome = "&space;";
+    sb.append(outcome);
     String[] context = event.getContext();
     // Assaf: write real values to file
     float[] values = event.getValues();
@@ -135,8 +155,8 @@ public class FileEventStream extends  AbstractEventStream {
    */
   public static void main(String[] args) throws IOException {
     if (args.length == 0) {
-      System.err.println("Usage: FileEventStream eventfile [iterations cutoff]");
-      System.exit(1);
+    	LOG.error("Usage: FileEventStream eventfile [iterations cutoff]");
+    	System.exit(1);
     }
     int ai=0;
     String eventFile = args[ai++];
