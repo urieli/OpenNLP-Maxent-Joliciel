@@ -29,6 +29,7 @@ import opennlp.model.AbstractModelWriter;
 import opennlp.model.ComparablePredicate;
 import opennlp.model.Context;
 import opennlp.model.IndexHashTable;
+import opennlp.model.MaxentModel;
 
 /**
  * Abstract parent class for GISModel writers.  It provides the persist method
@@ -45,7 +46,7 @@ public abstract class GISModelWriter extends AbstractModelWriter {
     protected double CORRECTION_PARAM;
     protected String[] PRED_LABELS;
 
-    public GISModelWriter (AbstractModel model) {
+    public GISModelWriter (MaxentModel model) {
       
       Object[] data = model.getDataStructures();
       

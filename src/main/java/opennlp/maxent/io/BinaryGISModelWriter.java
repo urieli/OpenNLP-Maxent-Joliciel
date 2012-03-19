@@ -26,6 +26,7 @@ import java.io.IOException;
 import java.util.zip.GZIPOutputStream;
 
 import opennlp.model.AbstractModel;
+import opennlp.model.MaxentModel;
 
 /**
  * Model writer that saves models in binary format.
@@ -44,7 +45,7 @@ public class BinaryGISModelWriter extends GISModelWriter {
      * @param model The GISModel which is to be persisted.
      * @param f The File in which the model is to be persisted.
      */
-    public BinaryGISModelWriter (AbstractModel model, File f) throws IOException {
+    public BinaryGISModelWriter (MaxentModel model, File f) throws IOException {
 
 	super(model);
 	
@@ -64,7 +65,7 @@ public class BinaryGISModelWriter extends GISModelWriter {
      * @param model The GISModel which is to be persisted.
      * @param dos The stream which will be used to persist the model.
      */
-    public BinaryGISModelWriter (AbstractModel model, DataOutputStream dos) {
+    public BinaryGISModelWriter (MaxentModel model, DataOutputStream dos) {
       super(model);
       output = dos;
     }
