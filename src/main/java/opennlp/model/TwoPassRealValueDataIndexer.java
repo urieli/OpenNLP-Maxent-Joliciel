@@ -16,14 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package opennlp.model;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
@@ -31,34 +30,32 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 /**
- * An indexer for maxent model data which handles cutoffs for uncommon
- * contextual predicates and provides a unique integer index for each of the
- * predicates and maintains event values.  
+ * Extends TwoPassDataIndexer to take into account real values.
+ * @author Assaf Urieli
+ *
  */
-public class OnePassRealValueDataIndexer extends OnePassDataIndexer {
-	private static final Log LOG = LogFactory.getLog(OnePassRealValueDataIndexer.class);
-
+public class TwoPassRealValueDataIndexer extends TwoPassDataIndexer {
+	private static final Log LOG = LogFactory.getLog(TwoPassRealValueDataIndexer.class);
 	float[][] values;
 
-	public OnePassRealValueDataIndexer(EventStream eventStream, int cutoff, boolean sort) throws IOException {
-		super(eventStream,cutoff,sort);
+	public TwoPassRealValueDataIndexer(EventStream eventStream, int cutoff)
+	throws IOException {
+		super(eventStream, cutoff);
 	}
 
-	/**
-	 * Two argument constructor for DataIndexer.
-	 * @param eventStream An Event[] which contains the a list of all the Events
-	 *               seen in the training data.
-	 * @param cutoff The minimum number of times a predicate must have been
-	 *               observed in order to be included in the model.
-	 */
-	public OnePassRealValueDataIndexer(EventStream eventStream, int cutoff) throws IOException {
-		super(eventStream,cutoff);
+	public TwoPassRealValueDataIndexer(EventStream eventStream)
+	throws IOException {
+		super(eventStream);
+	}
+
+	public TwoPassRealValueDataIndexer(EventStream eventStream, int cutoff, boolean sort) throws IOException {
+		super(eventStream, cutoff, sort);
 	}
 
 	public float[][] getValues() {
 		return values;
 	}
-
+	
 	protected int sortAndMerge(List eventsToCompare,boolean sort) {
 		int numUniqueEvents = super.sortAndMerge(eventsToCompare,sort);
 		values = new float[numUniqueEvents][];
@@ -73,16 +70,14 @@ public class OnePassRealValueDataIndexer extends OnePassDataIndexer {
 		return numUniqueEvents;
 	}
 
-	protected List index(LinkedList<Event> events, Map<String,Integer> predicateIndex) {
+	@Override
+	protected List index(int numEvents, EventStream es, Map<String,Integer> predicateIndex) throws IOException {
 		Map<String,Integer> omap = new HashMap<String,Integer>();
-
-		int numEvents = events.size();
 		int outcomeCount = 0;
 		List eventsToCompare = new ArrayList(numEvents);
 		List<Integer> indexedContext = new ArrayList<Integer>();
-
-		for (int eventIndex=0; eventIndex<numEvents; eventIndex++) {
-			Event ev = (Event)events.removeFirst();
+		while (es.hasNext()) {
+			Event ev = es.next();
 			String[] econtext = ev.getContext();
 			ComparableEvent ce;
 
@@ -91,19 +86,20 @@ public class OnePassRealValueDataIndexer extends OnePassDataIndexer {
 
 			if (omap.containsKey(oc)) {
 				ocID = omap.get(oc);
-			} else {
+			}
+			else {
 				ocID = outcomeCount++;
 				omap.put(oc, ocID);
 			}
 
-			for (int i=0; i<econtext.length; i++) {
+			for (int i = 0; i < econtext.length; i++) {
 				String pred = econtext[i];
 				if (predicateIndex.containsKey(pred)) {
 					indexedContext.add(predicateIndex.get(pred));
 				}
 			}
 
-			//drop events with no active features
+			// drop events with no active features
 			if (indexedContext.size() > 0) {
 				int[] cons = new int[indexedContext.size()];
 				for (int ci=0;ci<cons.length;ci++) {
@@ -113,14 +109,21 @@ public class OnePassRealValueDataIndexer extends OnePassDataIndexer {
 				eventsToCompare.add(ce);
 			}
 			else {
-				LOG.debug("Dropped event "+ev.getOutcome()+":"+Arrays.asList(ev.getContext()));
+				LOG.debug("Dropped event " + ev.getOutcome() + ":" + Arrays.asList(ev.getContext()));
 			}
-			//    recycle the TIntArrayList
+			// recycle the TIntArrayList
 			indexedContext.clear();
 		}
 		outcomeLabels = toIndexedStringArray(omap);
 		predLabels = toIndexedStringArray(predicateIndex);
 		return eventsToCompare;
 	}
-
+	
+	 protected EventStream getFileEventStream(File file) throws IOException {
+		  return new RealValueFileEventStream2(file);
+	 }
+	 
+	 protected String toLine(Event ev) {
+		  return RealValueFileEventStream2.toLine(ev);
+	 }
 }

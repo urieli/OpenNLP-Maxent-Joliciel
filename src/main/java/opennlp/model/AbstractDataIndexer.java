@@ -24,13 +24,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 
 /**
  * Abstract class for collecting event and context counts used in training. 
  *
  */
 public abstract class AbstractDataIndexer implements DataIndexer {
-
+  private static final Log LOG = LogFactory.getLog(AbstractDataIndexer.class);
+  
   private int numEvents;
   /** The integer contexts associated with each unique event. */ 
   protected int[][] contexts;
@@ -106,7 +110,7 @@ public abstract class AbstractDataIndexer implements DataIndexer {
     else {
       numUniqueEvents = eventsToCompare.size();
     }
-    if (sort) System.out.println("done. Reduced " + numEvents + " events to " + numUniqueEvents + ".");
+    if (sort) LOG.info("done. Reduced " + numEvents + " events to " + numUniqueEvents + ".");
 
     contexts = new int[numUniqueEvents][];
     outcomeList = new int[numUniqueEvents];

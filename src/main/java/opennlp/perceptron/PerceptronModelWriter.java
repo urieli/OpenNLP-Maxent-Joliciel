@@ -24,11 +24,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import opennlp.model.AbstractModel;
 import opennlp.model.AbstractModelWriter;
 import opennlp.model.ComparablePredicate;
 import opennlp.model.Context;
 import opennlp.model.IndexHashTable;
+import opennlp.model.MaxentModel;
 
 /**
  * Abstract parent class for Perceptron writers.  It provides the persist method
@@ -42,7 +42,7 @@ public abstract class PerceptronModelWriter extends AbstractModelWriter {
     protected String[] PRED_LABELS;
     int numOutcomes;
 
-    public PerceptronModelWriter (AbstractModel model) {
+    public PerceptronModelWriter (MaxentModel model) {
       
       Object[] data = model.getDataStructures();
       this.numOutcomes = model.getNumOutcomes();

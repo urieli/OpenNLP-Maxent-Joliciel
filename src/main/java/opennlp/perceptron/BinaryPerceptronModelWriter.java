@@ -26,6 +26,7 @@ import java.io.IOException;
 import java.util.zip.GZIPOutputStream;
 
 import opennlp.model.AbstractModel;
+import opennlp.model.MaxentModel;
 
 /**
  * Model writer that saves models in binary format.
@@ -41,7 +42,7 @@ public class BinaryPerceptronModelWriter extends PerceptronModelWriter {
    * @param model The GISModel which is to be persisted.
    * @param f The File in which the model is to be persisted.
    */
-  public BinaryPerceptronModelWriter (AbstractModel model, File f) throws IOException {
+  public BinaryPerceptronModelWriter (MaxentModel model, File f) throws IOException {
 
     super(model);
 
@@ -61,7 +62,7 @@ public class BinaryPerceptronModelWriter extends PerceptronModelWriter {
    * @param model The GISModel which is to be persisted.
    * @param dos The stream which will be used to persist the model.
    */
-  public BinaryPerceptronModelWriter (AbstractModel model, DataOutputStream dos) {
+  public BinaryPerceptronModelWriter (MaxentModel model, DataOutputStream dos) {
     super(model);
     output = dos;
   }

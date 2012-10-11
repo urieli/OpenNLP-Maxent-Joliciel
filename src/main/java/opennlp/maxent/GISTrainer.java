@@ -28,6 +28,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import opennlp.model.DataIndexer;
 import opennlp.model.EvalParameters;
 import opennlp.model.EventStream;
@@ -54,7 +57,9 @@ import opennlp.model.UniformPrior;
  * relative entropy between the distribution specified by the empirical constraints of the training
  * data and the specified prior.  By default, the uniform distribution is used as the prior.
  */
-class GISTrainer {
+public class GISTrainer {
+    private static final Log LOG = LogFactory.getLog(GISTrainer.class);
+    private String currentMessage = "";
 
   /**
    * Specifies whether unseen context/outcome pairs should be estimated as occur very infrequently.
@@ -164,7 +169,7 @@ class GISTrainer {
    * progress messages about training to STDOUT.
    * 
    */
-  GISTrainer() {
+  public GISTrainer() {
     printMessages = false;
   }
 
@@ -174,7 +179,7 @@ class GISTrainer {
    * @param printMessages sends progress messages about training to
    *                      STDOUT when true; trains silently otherwise.
    */
-  GISTrainer(boolean printMessages) {
+  public GISTrainer(boolean printMessages) {
     this.printMessages = printMessages;
   }
 
@@ -414,7 +419,7 @@ class GISTrainer {
       currLL = nextIteration(correctionConstant);
       if (i > 1) {
         if (prevLL > currLL) {
-          System.err.println("Model Diverging: loglikelihood decreased");
+          LOG.error("Model Diverging: loglikelihood decreased");
           break;
         }
         if (currLL - prevLL < LLThreshold) {
@@ -617,7 +622,7 @@ class GISTrainer {
         }
         else {
           if (model[aoi] == 0) {
-            System.err.println("Model expects == 0 for "+predLabels[pi]+" "+outcomeLabels[aoi]);
+        	  LOG.error("Model expects == 0 for "+predLabels[pi]+" "+outcomeLabels[aoi]);
           }
           //params[pi].updateParameter(aoi,(Math.log(observed[aoi]) - Math.log(model[aoi])));
           params[pi].updateParameter(aoi,((Math.log(observed[aoi]) - Math.log(model[aoi]))/correctionConstant));
@@ -635,7 +640,12 @@ class GISTrainer {
   }
 
   private void display(String s) {
-    if (printMessages)
-      System.out.print(s);
+	  if (printMessages) {
+		  currentMessage += s;
+		  if (s.endsWith("\n")) {
+			  LOG.debug(currentMessage.substring(0, currentMessage.length()-1));
+			  currentMessage = "";
+		  }
+	  }
   }
 }

@@ -29,6 +29,7 @@ import java.io.OutputStreamWriter;
 import java.util.zip.GZIPOutputStream;
 
 import opennlp.model.AbstractModel;
+import opennlp.model.MaxentModel;
 
 /**
  * Model writer that saves models in plain text format.
@@ -44,7 +45,7 @@ public class PlainTextPerceptronModelWriter extends PerceptronModelWriter {
    * @param model The PerceptronModel which is to be persisted.
    * @param f The File in which the model is to be persisted.
    */
-  public PlainTextPerceptronModelWriter (AbstractModel model, File f)
+  public PlainTextPerceptronModelWriter (MaxentModel model, File f)
   throws IOException, FileNotFoundException {
 
     super(model);
@@ -64,7 +65,7 @@ public class PlainTextPerceptronModelWriter extends PerceptronModelWriter {
    * @param model The PerceptronModel which is to be persisted.
    * @param bw The BufferedWriter which will be used to persist the model.
    */
-  public PlainTextPerceptronModelWriter (AbstractModel model, BufferedWriter bw) {
+  public PlainTextPerceptronModelWriter (MaxentModel model, BufferedWriter bw) {
     super(model);
     output = bw;
   }
