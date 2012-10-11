@@ -17,16 +17,26 @@
  * under the License.
  */
 
-package opennlp.maxent;
+package opennlp.model;
 
-/**
- * Generate contexts for maxent decisions.
- */
-public interface ContextGenerator {
+import java.util.List;
 
-  /**
-   * Builds up the list of contextual predicates given an Object.
-   */
-  public String[] getContext(Object o);
+public class ListEventStream implements EventStream {
+  List<Event> events;
+  int currentIndex = 0;
+  int numEvents;
 
+  public ListEventStream (List<Event> events) {
+    this.events = events;
+    numEvents = events.size();
+  }
+  
+  public Event next () {
+    return events.get(currentIndex++);
+  }
+  
+  public boolean hasNext () {
+    return currentIndex < numEvents;
+  }
+  
 }

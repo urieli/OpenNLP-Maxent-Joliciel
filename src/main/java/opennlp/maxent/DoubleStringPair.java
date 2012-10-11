@@ -16,17 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package opennlp.maxent;
 
-/**
- * Generate contexts for maxent decisions.
- */
-public interface ContextGenerator {
+public class DoubleStringPair implements Comparable<DoubleStringPair> {
 
-  /**
-   * Builds up the list of contextual predicates given an Object.
-   */
-  public String[] getContext(Object o);
+    final public String stringValue;
+    final public double doubleValue;
+
+    public DoubleStringPair (double d, String s) {
+      doubleValue = d;
+      stringValue = s;
+    }
+
+    public int compareTo(DoubleStringPair p) {
+      return Double.compare(doubleValue,p.doubleValue);
+    }
 
 }

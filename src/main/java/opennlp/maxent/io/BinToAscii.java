@@ -33,29 +33,23 @@ import java.util.zip.GZIPOutputStream;
  * A program to convert from java binary doubles to ascii.  With the new
  * conversion utililities provided in Maxent 1.2 this probably won't be
  * necessary, but it doesn't do any harm to keep it around for now.
- *
- * @author      Jason Baldridge and Gann Bierner
- * @version     $Revision: 1.2 $, $Date: 2010/09/06 08:02:18 $
  */
-
 public class BinToAscii {
 
-	public static void main(String[] args) throws IOException {
-		PrintWriter out =
-			new PrintWriter(new OutputStreamWriter(
-				new GZIPOutputStream(
-					new FileOutputStream(args[1]))));
-		DataInputStream in =
-			new DataInputStream(new GZIPInputStream(
-				new FileInputStream(args[0])));
+  public static void main(String[] args) throws IOException {
+    PrintWriter out = new PrintWriter(new OutputStreamWriter(
+        new GZIPOutputStream(new FileOutputStream(args[1]))));
+    DataInputStream in = new DataInputStream(new GZIPInputStream(
+        new FileInputStream(args[0])));
 
-		double d;
-		try {
-			while(true)
-				out.println(in.readDouble());
-		} catch (Exception E) {}
-		out.close();
-		in.close();
-	}
+    double d;
+    try {
+      while (true)
+        out.println(in.readDouble());
+    } catch (Exception E) {
+    }
+    out.close();
+    in.close();
+  }
 
 }

@@ -28,9 +28,19 @@ import java.util.Map;
 import opennlp.model.AbstractModel;
 import opennlp.model.Context;
 import opennlp.model.EvalParameters;
+import opennlp.model.IndexHashTable;
 
 public class PerceptronModel extends AbstractModel {
 
+  public PerceptronModel(Context[] params, String[] predLabels, IndexHashTable<String> pmap, String[] outcomeNames) {
+    super(params,predLabels,pmap,outcomeNames);
+    modelType = ModelType.Perceptron;
+  }
+  
+  /**
+   * @deprecated use the constructor with the {@link IndexHashTable} instead!
+   */
+  @Deprecated
   public PerceptronModel(Context[] params, String[] predLabels, Map<String,Integer> pmap, String[] outcomeNames) {
     super(params,predLabels,outcomeNames);
     modelType = ModelType.Perceptron;
@@ -87,29 +97,23 @@ public class PerceptronModel extends AbstractModel {
       }
     }    
     if (normalize) {
-      double normal = 0.0;
-      double min = prior[0];
-      for (int oid = 0; oid < model.getNumOutcomes(); oid++) {
-        if (prior[oid] < min) {
-          min = prior[oid];
-        }
+      int numOutcomes = model.getNumOutcomes();
+      
+      double maxPrior = 1;
+      
+      for (int oid = 0; oid < numOutcomes; oid++) {
+        if (maxPrior < Math.abs(prior[oid]))
+          maxPrior = Math.abs(prior[oid]);
       }
-      for (int oid = 0; oid < model.getNumOutcomes(); oid++) {
-        if (min < 0) {
-          prior[oid]+=(-1*min);
-        }
+      
+      double normal = 0.0;
+      for (int oid = 0; oid < numOutcomes; oid++) {
+        prior[oid] = Math.exp(prior[oid]/maxPrior);
         normal += prior[oid];
       }
-      if (normal == 0.0) {
-        for (int oid = 0; oid < model.getNumOutcomes(); oid++) {
-          prior[oid] = (double) 1/model.getNumOutcomes();
-        }
-      }
-      else {
-        for (int oid = 0; oid < model.getNumOutcomes(); oid++) {
-          prior[oid] /= normal;
-        }
-      }
+
+      for (int oid = 0; oid < numOutcomes; oid++)
+        prior[oid] /= normal;
     }
     return prior;
   }

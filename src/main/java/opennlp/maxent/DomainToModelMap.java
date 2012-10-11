@@ -33,60 +33,57 @@ import opennlp.model.MaxentModel;
  * newly trained one in a thread-safe manner.  By calling the getModel()
  * method, the application can create new instances of classes which use the
  * relevant models.
- *
- * @author  Jason Baldridge and Eric Friedman
- * @version $Revision: 1.2 $, $Date: 2010/09/06 08:02:18 $
  */
 public class DomainToModelMap {
 
-    // the underlying object which stores the mapping
-    private Map map = Collections.synchronizedMap(new HashMap());
+  // the underlying object which stores the mapping
+  private Map map = Collections.synchronizedMap(new HashMap());
 
-    /**
-     * Sets the model for the given domain.
-     *
-     * @param domain The ModelDomain object which keys to the model.
-     * @param model The MaxentModel trained for the domain.
-     */
-    public void setModelForDomain (ModelDomain domain, MaxentModel model) {
-	map.put(domain, model); 
+  /**
+   * Sets the model for the given domain.
+   * 
+   * @param domain
+   *          The ModelDomain object which keys to the model.
+   * @param model
+   *          The MaxentModel trained for the domain.
+   */
+  public void setModelForDomain(ModelDomain domain, MaxentModel model) {
+    map.put(domain, model);
+  }
+
+  /**
+   * Get the model mapped to by the given ModelDomain key.
+   * 
+   * @param domain
+   *          The ModelDomain object which keys to the desired model.
+   * @return The MaxentModel corresponding to the given domain.
+   */
+  public MaxentModel getModel(ModelDomain domain) {
+    if (map.containsKey(domain)) {
+      return (MaxentModel) map.get(domain);
+    } else {
+      throw new NoSuchElementException("No model has been created for "
+          + "domain: " + domain);
     }
+  }
 
+  /**
+   * Removes the mapping for this ModelDomain key from this map if present.
+   * 
+   * @param domain
+   *          The ModelDomain key whose mapping is to be removed from the map.
+   */
+  public void removeDomain(ModelDomain domain) {
+    map.remove(domain);
+  }
 
-    /**
-     * Get the model mapped to by the given ModelDomain key.
-     *
-     * @param domain The ModelDomain object which keys to the desired model.
-     * @return The MaxentModel corresponding to the given domain.
-     */
-    public MaxentModel getModel (ModelDomain domain) {
-	if (map.containsKey(domain)) {
-	    return (MaxentModel)map.get(domain); 
-	}  else {
-	    throw new NoSuchElementException("No model has been created for "+
-					     "domain: " + domain);
-	}
-    }
-    
-
-    /**
-     * Removes the mapping for this ModelDomain key from this map if present.
-     *
-     * @param domain The ModelDomain key whose mapping is to be removed from
-     *               the map.
-     */
-    public void removeDomain (ModelDomain domain) {
-	map.remove(domain);
-    }
-
-
-    /**
-     * A set view of the ModelDomain keys contained in this map.
-     *
-     * @return a set view of the ModelDomain keys contained in this map
-     */
-    public Set keySet () {
-	return map.keySet();
-    }
+  /**
+   * A set view of the ModelDomain keys contained in this map.
+   * 
+   * @return a set view of the ModelDomain keys contained in this map
+   */
+  public Set keySet() {
+    return map.keySet();
+  }
 
 }

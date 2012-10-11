@@ -20,9 +20,13 @@
 package opennlp.maxent;
 
 import java.io.IOException;
-
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 import opennlp.model.DataIndexer;
 import opennlp.model.EvalParameters;
@@ -49,28 +53,20 @@ import opennlp.model.UniformPrior;
  * A prior can be used to train models which converge to the distribution which minimizes the
  * relative entropy between the distribution specified by the empirical constraints of the training
  * data and the specified prior.  By default, the uniform distribution is used as the prior.
- *    
- * @author Tom Morton
- * @author  Jason Baldridge
- * @author Assaf Urieli for Joliciel updates
- * @version $Revision: 1.7 $, $Date: 2010/09/06 08:02:18 $
  */
-public class GISTrainer {
-    private static final Log LOG = LogFactory.getLog(GISTrainer.class);
-    private String currentMessage = "";
+class GISTrainer {
 
   /**
    * Specifies whether unseen context/outcome pairs should be estimated as occur very infrequently.
    */
   private boolean useSimpleSmoothing = false;
-  /**
-   * Specifies whether a slack parameter should be used in the model.
-   */
-  private boolean useSlackParameter = false;
-  /** Specified whether parameter updates should prefer a distribution of parameters which
+  
+  /** 
+   * Specified whether parameter updates should prefer a distribution of parameters which
    * is gaussian.
    */
   private boolean useGaussianSmoothing = false;
+  
   private double sigma = 2.0;
 
   // If we are using smoothing, this is used as the "number" of
@@ -78,80 +74,98 @@ public class GISTrainer {
   // actually didn't see.  Defaulted to 0.1.
   private double _smoothingObservation = 0.1;
 
-  private boolean printMessages = false;
+  private final boolean printMessages;
 
-  /** Number of unique events which occured in the event set. */
-  private int numUniqueEvents; 
-  /** Number of predicates. */
-  private int numPreds; 
-  /** Number of outcomes. */
-  private int numOutcomes; 
+  /** 
+   * Number of unique events which occured in the event set. 
+   */
+  private int numUniqueEvents;
+  
+  /** 
+   * Number of predicates. 
+   */
+  private int numPreds;
+  
+  /** 
+   * Number of outcomes. 
+   */
+  private int numOutcomes;
 
-  /** Records the array of predicates seen in each event. */
+  /** 
+   * Records the array of predicates seen in each event.
+   */
   private int[][] contexts;
   
-  /** The value associated with each context. If null then context values are assumes to be 1. */
+  /** 
+   * The value associated with each context. If null then context values are assumes to be 1.
+   */
   private float[][] values;
   
-  /** List of outcomes for each event i, in context[i]. */
+  /** 
+   * List of outcomes for each event i, in context[i].
+   */
   private int[] outcomeList;
 
-  /** Records the num of times an event has been seen for each event i, in context[i]. */
+  /** 
+   * Records the num of times an event has been seen for each event i, in context[i].
+   */
   private int[] numTimesEventsSeen;
   
-  /** The number of times a predicate occured in the training data. */
+  /** 
+   * The number of times a predicate occured in the training data.
+   */
   private int[] predicateCounts;
   
   private int cutoff;
 
-  /** Stores the String names of the outcomes.  The GIS only tracks outcomes
-   as ints, and so this array is needed to save the model to disk and
-   thereby allow users to know what the outcome was in human
-   understandable terms. */
+  /**
+   * Stores the String names of the outcomes. The GIS only tracks outcomes as
+   * ints, and so this array is needed to save the model to disk and thereby
+   * allow users to know what the outcome was in human understandable terms.
+   */
   private String[] outcomeLabels;
 
-  /** Stores the String names of the predicates. The GIS only tracks
-   predicates as ints, and so this array is needed to save the model to
-   disk and thereby allow users to know what the outcome was in human
-   understandable terms. */
+  /**
+   * Stores the String names of the predicates. The GIS only tracks predicates
+   * as ints, and so this array is needed to save the model to disk and thereby
+   * allow users to know what the outcome was in human understandable terms.
+   */
   private String[] predLabels;
 
-  /** Stores the observed expected values of the features based on training data. */
+  /**
+   * Stores the observed expected values of the features based on training data.
+   */
   private MutableContext[] observedExpects;
 
-  /** Stores the estimated parameter value of each predicate during iteration */
+  /**
+   * Stores the estimated parameter value of each predicate during iteration
+   */
   private MutableContext[] params;
 
-  /** Stores the expected values of the features based on the current models */
-  private MutableContext[] modelExpects;
-  
-  /** This is the prior distribution that the model uses for training. */
+  /** 
+   * Stores the expected values of the features based on the current models 
+   */
+  private MutableContext[][] modelExpects;
+
+  /**
+   * This is the prior distribution that the model uses for training.
+   */
   private Prior prior;
 
+  private static final double LLThreshold = 0.0001;
 
-  /** Observed expectation of correction feature. */
-  private double cfObservedExpect;
-  /** A global variable for the models expected value of the correction feature. */
-  private double CFMOD;
-
-  private final double NEAR_ZERO = 0.01;
-  private final double LLThreshold = 0.0001;
-
-  /** Stores the output of the current model on a single event durring
-   *  training.  This we be reset for every event for every itteration.  */
-  double[] modelDistribution;
-  /** Stores the number of features that get fired per event. */
-  int[] numfeats;
-  /** Initial probability for all outcomes. */
-  
-  EvalParameters evalParams;
   /**
-   * Creates a new <code>GISTrainer</code> instance which does
-   * not print progress messages about training to STDOUT.
-   *
+   * Initial probability for all outcomes.
+   */
+  private EvalParameters evalParams;
+
+  /**
+   * Creates a new <code>GISTrainer</code> instance which does not print
+   * progress messages about training to STDOUT.
+   * 
    */
   GISTrainer() {
-    super();
+    printMessages = false;
   }
 
   /**
@@ -160,8 +174,7 @@ public class GISTrainer {
    * @param printMessages sends progress messages about training to
    *                      STDOUT when true; trains silently otherwise.
    */
-  public GISTrainer(boolean printMessages) {
-    this();
+  GISTrainer(boolean printMessages) {
     this.printMessages = printMessages;
   }
 
@@ -221,7 +234,7 @@ public class GISTrainer {
    *         to disk using an opennlp.maxent.io.GISModelWriter object.
    */
   public GISModel trainModel(int iterations, DataIndexer di, int cutoff) {
-    return trainModel(iterations,di,new UniformPrior(),cutoff);
+    return trainModel(iterations,di,new UniformPrior(),cutoff,1);
   }
 
   /**
@@ -233,7 +246,13 @@ public class GISTrainer {
    * @return The newly trained model, which can be used immediately or saved
    *         to disk using an opennlp.maxent.io.GISModelWriter object.
    */
-  public GISModel trainModel(int iterations, DataIndexer di, Prior modelPrior, int cutoff) {
+  public GISModel trainModel(int iterations, DataIndexer di, Prior modelPrior, int cutoff, int threads) {
+    
+    if (threads <= 0)
+      throw new IllegalArgumentException("threads must be at leat one or greater!");
+    
+    modelExpects = new MutableContext[threads][];
+    
     /************** Incorporate all of the needed info ******************/
     display("Incorporating indexed data for training...  \n");
     contexts = di.getContexts();
@@ -246,9 +265,7 @@ public class GISTrainer {
     //printTable(contexts);
 
     // determine the correction constant and its inverse
-    // Assaf: changed this from int to float, default to 0
-    //int correctionConstant = 1;
-    float correctionConstant = 0;
+    double correctionConstant = 0;
     for (int ci = 0; ci < contexts.length; ci++) {
       if (values == null || values[ci] == null) {
         if (contexts[ci].length > correctionConstant) {
@@ -262,8 +279,7 @@ public class GISTrainer {
         }
         
         if (cl > correctionConstant) {
-          //correctionConstant=(int) Math.ceil(cl);
-          correctionConstant= cl;
+          correctionConstant = cl;
         }
       }
     }
@@ -308,7 +324,8 @@ public class GISTrainer {
     // implementation, this is cancelled out when we compute the next
     // iteration of a parameter, making the extra divisions wasteful.
     params = new MutableContext[numPreds];
-    modelExpects = new MutableContext[numPreds];
+    for (int i = 0; i< modelExpects.length; i++)
+      modelExpects[i] = new MutableContext[numPreds];
     observedExpects = new MutableContext[numPreds];
     
     // The model does need the correction constant and the correction feature. The correction constant
@@ -347,12 +364,14 @@ public class GISTrainer {
         }
       }
       params[pi] = new MutableContext(outcomePattern,new double[numActiveOutcomes]);
-      modelExpects[pi] = new MutableContext(outcomePattern,new double[numActiveOutcomes]);
+      for (int i = 0; i< modelExpects.length; i++)
+        modelExpects[i][pi] = new MutableContext(outcomePattern,new double[numActiveOutcomes]);
       observedExpects[pi] = new MutableContext(outcomePattern,new double[numActiveOutcomes]);
       for (int aoi=0;aoi<numActiveOutcomes;aoi++) {
         int oi = outcomePattern[aoi];
         params[pi].setParameter(aoi, 0.0);
-        modelExpects[pi].setParameter(aoi, 0.0);
+        for (int i = 0; i< modelExpects.length; i++)
+          modelExpects[i][pi].setParameter(aoi, 0.0);
         if (predCount[pi][oi] > 0) {
             observedExpects[pi].setParameter(aoi, predCount[pi][oi]);
         }
@@ -362,34 +381,16 @@ public class GISTrainer {
       }
     }
 
-    // compute the expected value of correction
-    if (useSlackParameter) {
-      int cfvalSum = 0;
-      for (int ti = 0; ti < numUniqueEvents; ti++) {
-        for (int j = 0; j < contexts[ti].length; j++) {
-          int pi = contexts[ti][j];
-          if (!modelExpects[pi].contains(outcomeList[ti])) {
-            cfvalSum += numTimesEventsSeen[ti];
-          }
-        }
-        cfvalSum += (correctionConstant - contexts[ti].length) * numTimesEventsSeen[ti];
-      }
-      if (cfvalSum == 0) {
-        cfObservedExpect = Math.log(NEAR_ZERO); //nearly zero so log is defined
-      }
-      else {
-        cfObservedExpect = Math.log(cfvalSum);
-      }
-    }
     predCount = null; // don't need it anymore
 
     display("...done.\n");
 
-    modelDistribution = new double[numOutcomes];
-    numfeats = new int[numOutcomes];
-
     /***************** Find the parameters ************************/
-    display("Computing model parameters...\n");
+    if (threads == 1)
+      display("Computing model parameters ...\n");
+    else
+      display("Computing model parameters in " + threads +" threads...\n");
+    
     findParameters(iterations, correctionConstant);
 
     /*************** Create and return the model ******************/
@@ -399,7 +400,7 @@ public class GISTrainer {
   }
 
   /* Estimate and return the model parameters. */
-  private void findParameters(int iterations, float correctionConstant) {
+  private void findParameters(int iterations, double correctionConstant) {
     double prevLL = 0.0;
     double currLL = 0.0;
     display("Performing " + iterations + " iterations.\n");
@@ -413,7 +414,7 @@ public class GISTrainer {
       currLL = nextIteration(correctionConstant);
       if (i > 1) {
         if (prevLL > currLL) {
-          LOG.error("Model Diverging: loglikelihood decreased");
+          System.err.println("Model Diverging: loglikelihood decreased");
           break;
         }
         if (currLL - prevLL < LLThreshold) {
@@ -433,21 +434,17 @@ public class GISTrainer {
   //modeled on implementation in  Zhang Le's maxent kit
   private double gaussianUpdate(int predicate, int oid, int n, double correctionConstant) {
     double param = params[predicate].getParameters()[oid];
-    double x = 0.0;
     double x0 = 0.0;
-    double f;
-    double tmp;
-    double fp;
-    double modelValue = modelExpects[predicate].getParameters()[oid];
+    double modelValue = modelExpects[0][predicate].getParameters()[oid];
     double observedValue = observedExpects[predicate].getParameters()[oid];
     for (int i = 0; i < 50; i++) {
-      tmp = modelValue * Math.exp(correctionConstant * x0);
-      f = tmp + (param + x0) / sigma - observedValue;
-      fp = tmp * correctionConstant + 1 / sigma;
+      double tmp = modelValue * Math.exp(correctionConstant * x0);
+      double f = tmp + (param + x0) / sigma - observedValue;
+      double fp = tmp * correctionConstant + 1 / sigma;
       if (fp == 0) {
         break;
       }
-      x = x0 - f / fp;
+      double x = x0 - f / fp;
       if (Math.abs(x - x0) < 0.000001) {
         x0 = x;
         break;
@@ -457,69 +454,162 @@ public class GISTrainer {
     return x0;
   }
   
-  /* Compute one iteration of GIS and retutn log-likelihood.*/
-  private double nextIteration(float correctionConstant) {
-    // compute contribution of p(a|b_i) for each feature and the new
-    // correction parameter
-    double loglikelihood = 0.0;
-    CFMOD = 0.0;
-    int numEvents = 0;
-    int numCorrect = 0;
-    for (int ei = 0; ei < numUniqueEvents; ei++) {
-      if (values != null) {
-        prior.logPrior(modelDistribution,contexts[ei],values[ei]);
-        GISModel.eval(contexts[ei], values[ei], modelDistribution, evalParams);
-      }
-      else {
-        prior.logPrior(modelDistribution,contexts[ei]);
-        GISModel.eval(contexts[ei], modelDistribution, evalParams);
-      }
-      for (int j = 0; j < contexts[ei].length; j++) {
-        int pi = contexts[ei][j];
-        if (predicateCounts[pi] >= cutoff) {
-          int[] activeOutcomes = modelExpects[pi].getOutcomes();
-          for (int aoi=0;aoi<activeOutcomes.length;aoi++) {
-            int oi = activeOutcomes[aoi];
-            if (values != null && values[ei] != null) {
-              modelExpects[pi].updateParameter(aoi,modelDistribution[oi] * values[ei][j] * numTimesEventsSeen[ei]);
-            }
-            else {
-              modelExpects[pi].updateParameter(aoi,modelDistribution[oi] * numTimesEventsSeen[ei]);
-            }
-          }
-          if (useSlackParameter) {
-            for (int oi = 0; oi < numOutcomes; oi++) {
-              if (!modelExpects[pi].contains(oi)) {
-                CFMOD += modelDistribution[oi] * numTimesEventsSeen[ei];
+  private class ModelExpactationComputeTask implements Callable<ModelExpactationComputeTask> {
+
+    private final int startIndex;
+    private final int length; 
+    
+    private double loglikelihood = 0;
+    
+    private int numEvents = 0;
+    private int numCorrect = 0;
+    
+    final private int threadIndex;
+
+    // startIndex to compute, number of events to compute
+    ModelExpactationComputeTask(int threadIndex, int startIndex, int length) {
+      this.startIndex = startIndex;
+      this.length = length;
+      this.threadIndex = threadIndex;
+    }
+    
+    public ModelExpactationComputeTask call() {
+      
+      final double[] modelDistribution = new double[numOutcomes];
+      
+      
+      for (int ei = startIndex; ei < startIndex + length; ei++) {
+        
+        // TODO: check interruption status here, if interrupted set a poisoned flag and return
+        
+        if (values != null) {
+          prior.logPrior(modelDistribution, contexts[ei], values[ei]); 
+          GISModel.eval(contexts[ei], values[ei], modelDistribution, evalParams);
+        }
+        else {
+          prior.logPrior(modelDistribution,contexts[ei]);
+          GISModel.eval(contexts[ei], modelDistribution, evalParams);
+        }
+        for (int j = 0; j < contexts[ei].length; j++) {
+          int pi = contexts[ei][j];
+          if (predicateCounts[pi] >= cutoff) {
+            int[] activeOutcomes = modelExpects[threadIndex][pi].getOutcomes();
+            for (int aoi=0;aoi<activeOutcomes.length;aoi++) {
+              int oi = activeOutcomes[aoi];
+              
+              // numTimesEventsSeen must also be thread safe
+              if (values != null && values[ei] != null) {
+                modelExpects[threadIndex][pi].updateParameter(aoi,modelDistribution[oi] * values[ei][j] * numTimesEventsSeen[ei]);
+              }
+              else {
+                modelExpects[threadIndex][pi].updateParameter(aoi,modelDistribution[oi] * numTimesEventsSeen[ei]);
               }
             }
           }
         }
-      }
-      if (useSlackParameter)
-        CFMOD += (correctionConstant - contexts[ei].length) * numTimesEventsSeen[ei];
-      
-      loglikelihood += Math.log(modelDistribution[outcomeList[ei]]) * numTimesEventsSeen[ei];
-      numEvents += numTimesEventsSeen[ei];
-      if (printMessages) {
-        int max = 0;
-        for (int oi = 1; oi < numOutcomes; oi++) {
-          if (modelDistribution[oi] > modelDistribution[max]) {
-            max = oi;
+        
+        loglikelihood += Math.log(modelDistribution[outcomeList[ei]]) * numTimesEventsSeen[ei];
+        
+        numEvents += numTimesEventsSeen[ei];
+        if (printMessages) {
+          int max = 0;
+          for (int oi = 1; oi < numOutcomes; oi++) {
+            if (modelDistribution[oi] > modelDistribution[max]) {
+              max = oi;
+            }
+          }
+          if (max == outcomeList[ei]) {
+            numCorrect += numTimesEventsSeen[ei];
           }
         }
-        if (max == outcomeList[ei]) {
-          numCorrect += numTimesEventsSeen[ei];
-        }
+        
       }
-
+      
+      return this;
     }
+    
+    synchronized int getNumEvents() {
+      return numEvents;
+    }
+    
+    synchronized int getNumCorrect() {
+      return numCorrect;
+    }
+    
+    synchronized double getLoglikelihood() {
+      return loglikelihood;
+    }
+  }
+  
+  /* Compute one iteration of GIS and retutn log-likelihood.*/
+  private double nextIteration(double correctionConstant) {
+    // compute contribution of p(a|b_i) for each feature and the new
+    // correction parameter
+    double loglikelihood = 0.0;
+    int numEvents = 0;
+    int numCorrect = 0;
+    
+    int numberOfThreads = modelExpects.length;
+    
+    ExecutorService executor = Executors.newFixedThreadPool(numberOfThreads);
+    
+    int taskSize = numUniqueEvents / numberOfThreads;
+    
+    int leftOver = numUniqueEvents % numberOfThreads;
+    
+    List<Future<?>> futures = new ArrayList<Future<?>>();
+    
+    for (int i = 0; i < numberOfThreads; i++) {
+      if (i != numberOfThreads - 1)
+        futures.add(executor.submit(new ModelExpactationComputeTask(i, i*taskSize, taskSize)));
+      else 
+        futures.add(executor.submit(new ModelExpactationComputeTask(i, i*taskSize, taskSize + leftOver)));
+    }
+    
+    for (Future<?> future : futures) {
+      ModelExpactationComputeTask finishedTask = null;
+      try {
+        finishedTask = (ModelExpactationComputeTask) future.get();
+      } catch (InterruptedException e) {
+        // TODO: We got interrupted, but that is currently not really supported!
+        // For now we just print the exception and fail hard. We hopefully soon
+        // handle this case properly!
+        e.printStackTrace();
+        throw new IllegalStateException("Interruption is not supported!", e);
+      } catch (ExecutionException e) {
+        // Only runtime exception can be thrown during training, if one was thrown
+        // it should be re-thrown. That could for example be a NullPointerException
+        // which is caused through a bug in our implementation.
+        throw new RuntimeException(e.getCause());
+      }
+      
+      // When they are done, retrieve the results ...
+      numEvents += finishedTask.getNumEvents();
+      numCorrect += finishedTask.getNumCorrect();
+      loglikelihood += finishedTask.getLoglikelihood();
+    }
+
+    executor.shutdown();
+    
     display(".");
 
+    // merge the results of the two computations
+    for (int pi = 0; pi < numPreds; pi++) {
+      int[] activeOutcomes = params[pi].getOutcomes();
+      
+      for (int aoi=0;aoi<activeOutcomes.length;aoi++) {
+        for (int i = 1; i < modelExpects.length; i++) {
+          modelExpects[0][pi].updateParameter(aoi, modelExpects[i][pi].getParameters()[aoi]);
+        }
+      }
+    }
+    
+    display(".");
+    
     // compute the new parameter values
     for (int pi = 0; pi < numPreds; pi++) {
       double[] observed = observedExpects[pi].getParameters();
-      double[] model = modelExpects[pi].getParameters();
+      double[] model = modelExpects[0][pi].getParameters();
       int[] activeOutcomes = params[pi].getOutcomes();
       for (int aoi=0;aoi<activeOutcomes.length;aoi++) {
         if (useGaussianSmoothing) {
@@ -532,24 +622,20 @@ public class GISTrainer {
           //params[pi].updateParameter(aoi,(Math.log(observed[aoi]) - Math.log(model[aoi])));
           params[pi].updateParameter(aoi,((Math.log(observed[aoi]) - Math.log(model[aoi]))/correctionConstant));
         }
-        modelExpects[pi].setParameter(aoi,0.0); // re-initialize to 0.0's
+        
+        for (int i = 0; i< modelExpects.length; i++)
+          modelExpects[i][pi].setParameter(aoi,0.0); // re-initialize to 0.0's
+
       }
     }
-    if (CFMOD > 0.0 && useSlackParameter)
-        evalParams.setCorrectionParam(evalParams.getCorrectionParam() + (cfObservedExpect - Math.log(CFMOD)));
 
     display(". loglikelihood=" + loglikelihood + "\t" + ((double) numCorrect / numEvents) + "\n");
-    return (loglikelihood);
+    
+    return loglikelihood;
   }
 
   private void display(String s) {
-    if (printMessages) {
-    	currentMessage += s;
-    	if (s.endsWith("\n")) {
-    		LOG.debug(currentMessage.substring(0, currentMessage.length()-1));
-    		currentMessage = "";
-    	}
-    }
+    if (printMessages)
+      System.out.print(s);
   }
-
 }

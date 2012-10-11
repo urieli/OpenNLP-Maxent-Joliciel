@@ -22,14 +22,10 @@ package opennlp.model;
 import java.io.File;
 import java.io.IOException;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-
 import opennlp.maxent.GIS;
 import opennlp.maxent.io.SuffixSensitiveGISModelWriter;
 
 public class RealValueFileEventStream extends FileEventStream {
-    private static final Log LOG = LogFactory.getLog(RealValueFileEventStream.class);
 
   public RealValueFileEventStream(String fileName) throws IOException {
     super(fileName);
@@ -58,7 +54,7 @@ public class RealValueFileEventStream extends FileEventStream {
         }
         catch (NumberFormatException e) {
           gotReal = false;
-          LOG.info("Unable to determine value in context:"+contexts[ci]);
+          System.err.println("Unable to determine value in context:"+contexts[ci]);
           values[ci] = 1;
         }
         if (gotReal) {
@@ -95,7 +91,7 @@ public class RealValueFileEventStream extends FileEventStream {
    */
   public static void main(String[] args) throws IOException {
     if (args.length == 0) {
-      LOG.error("Usage: RealValueFileEventStream eventfile [iterations cutoff]");
+      System.err.println("Usage: RealValueFileEventStream eventfile [iterations cutoff]");
       System.exit(1);
     }
     int ai=0;

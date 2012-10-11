@@ -24,25 +24,21 @@ package opennlp.maxent;
  * supplied to an EventStream. It is not necessary to use a DataStream in a
  * Maxent application, but it can be used to support a wider variety of formats
  * in which your training data can be held.
- *
- * @author      Jason Baldridge
- * @version     $Revision: 1.2 $, $Date: 2010/09/06 08:02:18 $
  */
 public interface DataStream {
 
-    /**
-     * Returns the next slice of data held in this DataStream.
-     *
-     * @return the Object representing the data which is next in this
-     *         DataStream
-     */
-    public Object nextToken ();
+  /**
+   * Returns the next slice of data held in this DataStream.
+   * 
+   * @return the Object representing the data which is next in this DataStream
+   */
+  public Object nextToken();
 
-    /**
-     * Test whether there are any Events remaining in this EventStream.
-     *
-     * @return true if this DataStream has more data tokens
-     */
-    public boolean hasNext ();
+  /**
+   * Test whether there are any Events remaining in this EventStream.
+   * 
+   * @return true if this DataStream has more data tokens
+   */
+  public boolean hasNext();
 }
 

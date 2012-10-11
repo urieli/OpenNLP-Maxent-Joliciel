@@ -34,9 +34,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-
 
 /**
  * Collecting event and context counts by making two passes over the events.  The
@@ -45,11 +42,8 @@ import org.apache.commons.logging.LogFactory;
  * will be used.  This greatly reduces the amount of memory required for storing
  * the events.  During the first pass a temporary event file is created which
  * is read during the second pass.
- * 
- * @author Assaf Urieli for Joliciel updates
  */
 public class TwoPassDataIndexer extends AbstractDataIndexer{
-    private static final Log LOG = LogFactory.getLog(TwoPassDataIndexer.class);
 
   /**
    * One argument constructor for DataIndexer which calls the two argument
@@ -77,35 +71,35 @@ public class TwoPassDataIndexer extends AbstractDataIndexer{
     Map<String,Integer> predicateIndex = new HashMap<String,Integer>();
     List eventsToCompare;
 
-    LOG.info("Indexing events using cutoff of " + cutoff + "\n");
+    System.out.println("Indexing events using cutoff of " + cutoff + "\n");
 
-    LOG.info("Computing event counts...  ");
+    System.out.print("\tComputing event counts...  ");
     try {
       File tmp = File.createTempFile("events", null);
       tmp.deleteOnExit();
       Writer osw = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(tmp),"UTF8"));
       int numEvents = computeEventCounts(eventStream, osw, predicateIndex, cutoff);
-      LOG.info("done. " + numEvents + " events");
+      System.out.println("done. " + numEvents + " events");
 
-      LOG.info("Indexing...  ");
+      System.out.print("\tIndexing...  ");
 
       eventsToCompare = index(numEvents, new FileEventStream(tmp), predicateIndex);
       // done with predicates
       predicateIndex = null;
       tmp.delete();
-      LOG.info("done.");
+      System.out.println("done.");
 
       if (sort) { 
-    	  LOG.info("Sorting and merging events... ");
+        System.out.print("Sorting and merging events... ");
       }
       else {
-    	  LOG.info("Collecting events... ");
+        System.out.print("Collecting events... ");
       }
       sortAndMerge(eventsToCompare,sort);
-      LOG.info("Done indexing.");
+      System.out.println("Done indexing.");
     }
     catch(IOException e) {
-    	LOG.error(e);
+      System.err.println(e);
     }
   }
 
@@ -142,7 +136,7 @@ public class TwoPassDataIndexer extends AbstractDataIndexer{
     return eventCount;
   }
 
-  protected List index(int numEvents, EventStream es, Map<String,Integer> predicateIndex) throws IOException {
+  private List index(int numEvents, EventStream es, Map<String,Integer> predicateIndex) throws IOException {
     Map<String,Integer> omap = new HashMap<String,Integer>();
     int outcomeCount = 0;
     List eventsToCompare = new ArrayList(numEvents);
@@ -180,7 +174,7 @@ public class TwoPassDataIndexer extends AbstractDataIndexer{
         eventsToCompare.add(ce);
       }
       else {
-        LOG.debug("Dropped event " + ev.getOutcome() + ":" + Arrays.asList(ev.getContext()));
+        System.err.println("Dropped event " + ev.getOutcome() + ":" + Arrays.asList(ev.getContext()));
       }
       // recycle the TIntArrayList
       indexedContext.clear();

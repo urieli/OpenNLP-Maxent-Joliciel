@@ -1,0 +1,7 @@
+# openMaxent .gitignore
+.classpath
+.project
+.settings/
+bin/
+build/
+dist/

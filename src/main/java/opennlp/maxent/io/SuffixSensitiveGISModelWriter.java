@@ -29,7 +29,6 @@ import java.io.OutputStreamWriter;
 import java.util.zip.GZIPOutputStream;
 
 import opennlp.model.AbstractModel;
-import opennlp.model.MaxentModel;
 
 /**
  * A writer for GIS models which inspects the filename and invokes the
@@ -39,9 +38,6 @@ import opennlp.model.MaxentModel;
  *    <li>.gz  --> the file is gzipped (must be the last suffix)
  *    <li>.txt --> the file is plain text
  *    <li>.bin --> the file is binary
- *
- * @author      Jason Baldridge
- * @version     $Revision: 1.2 $, $Date: 2010/09/06 08:02:18 $
  */
 public class SuffixSensitiveGISModelWriter extends GISModelWriter {
   private final GISModelWriter suffixAppropriateWriter;
@@ -53,7 +49,7 @@ public class SuffixSensitiveGISModelWriter extends GISModelWriter {
    * @param model The GISModel which is to be persisted.
    * @param f The File in which the model is to be stored.
    */
-  public SuffixSensitiveGISModelWriter (MaxentModel model, File f)
+  public SuffixSensitiveGISModelWriter (AbstractModel model, File f)
   throws IOException {
 
     super (model);

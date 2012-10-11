@@ -29,13 +29,9 @@ import java.io.OutputStreamWriter;
 import java.util.zip.GZIPOutputStream;
 
 import opennlp.model.AbstractModel;
-import opennlp.model.MaxentModel;
 
 /**
  * Model writer that saves models in plain text format.
- *
- * @author      Jason Baldridge
- * @version     $Revision: 1.2 $, $Date: 2010/09/06 08:02:18 $
  */
 public class PlainTextGISModelWriter extends GISModelWriter {
   BufferedWriter output;
@@ -48,7 +44,7 @@ public class PlainTextGISModelWriter extends GISModelWriter {
    * @param model The GISModel which is to be persisted.
    * @param f The File in which the model is to be persisted.
    */
-  public PlainTextGISModelWriter (MaxentModel model, File f)
+  public PlainTextGISModelWriter (AbstractModel model, File f)
   throws IOException, FileNotFoundException {
 
     super(model);
@@ -68,7 +64,7 @@ public class PlainTextGISModelWriter extends GISModelWriter {
    * @param model The GISModel which is to be persisted.
    * @param bw The BufferedWriter which will be used to persist the model.
    */
-  public PlainTextGISModelWriter (MaxentModel model, BufferedWriter bw) {
+  public PlainTextGISModelWriter (AbstractModel model, BufferedWriter bw) {
     super(model);
     output = bw;
   }

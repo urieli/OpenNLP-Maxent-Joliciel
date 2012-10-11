@@ -34,6 +34,8 @@ import opennlp.model.MutableContext;
  */
 public class PerceptronTrainer {
 
+  public static final double TOLERANCE_DEFAULT = .00001;
+  
   /** Number of unique events which occurred in the event set. */
   private int numUniqueEvents;
   /** Number of events in the event set. */
@@ -67,48 +69,81 @@ public class PerceptronTrainer {
   understandable terms. */
   private String[] predLabels;
 
-  /** Stores the estimated parameter value of each predicate during iteration. */
-  private MutableContext[] params; 
-
-  private int[][][] updates;
-  private int VALUE = 0;
-  private int ITER = 1;
-  private int EVENT = 2;
-  
-  /** Stores the average parameter values of each predicate during iteration. */
-  private MutableContext[] averageParams;
-
-  private EvalParameters evalParams;
-
   private boolean printMessages = true;
-    
-  double[] modelDistribution;
   
-  private int iterations;
-  private boolean useAverage;
+  private double tolerance = TOLERANCE_DEFAULT;
+  
+  private Double stepSizeDecrease;
+  
+  private boolean useSkippedlAveraging;
+  
+  /**
+   * Specifies the tolerance. If the change in training set accuracy
+   * is less than this, stop iterating.
+   * 
+   * @param tolerance
+   */
+  public void setTolerance(double tolerance) {
+    
+    if (tolerance < 0)
+      throw new IllegalArgumentException("tolerance must be a positive number!");
+    
+    this.tolerance = tolerance;
+  }
+
+  /**
+   * Enables and sets step size decrease. The step size is
+   * decreased every iteration by the specified value.
+   * 
+   * @param decrease - step size decrease in percent
+   */
+  public void setStepSizeDecrease(double decrease) {
+    
+    if (decrease < 0 || decrease > 100)
+      throw new IllegalArgumentException("decrease must be between 0 and 100");
+    
+    stepSizeDecrease = decrease;
+  }
+  
+  /**
+   * Enables skipped averaging, this flag changes the standard
+   * averaging to special averaging instead.
+   * <p>
+   * If we are doing averaging, and the current iteration is one
+   * of the first 20 or it is a perfect square, then updated the
+   * summed parameters. 
+   * <p>
+   * The reason we don't take all of them is that the parameters change
+   * less toward the end of training, so they drown out the contributions
+   * of the more volatile early iterations. The use of perfect
+   * squares allows us to sample from successively farther apart iterations.
+   *  
+   * @param averaging
+   * 
+   * @return
+   */
+  public void setSkippedAveraging(boolean averaging) {
+    useSkippedlAveraging = averaging;
+  }
   
   public AbstractModel trainModel(int iterations, DataIndexer di, int cutoff) {
-    this.iterations = iterations;
     return trainModel(iterations,di,cutoff,true);
   }
   
   public AbstractModel trainModel(int iterations, DataIndexer di, int cutoff, boolean useAverage) {
     display("Incorporating indexed data for training...  \n");
-    this.useAverage = useAverage;
     contexts = di.getContexts();
     values = di.getValues();
     numTimesEventsSeen = di.getNumTimesEventsSeen();
     numEvents = di.getNumEvents();
     numUniqueEvents = contexts.length;
 
-    this.iterations = iterations;
     outcomeLabels = di.getOutcomeLabels();
     outcomeList = di.getOutcomeList();
 
     predLabels = di.getPredLabels();
     numPreds = predLabels.length;
     numOutcomes = outcomeLabels.length;
-    if (useAverage) updates = new int[numPreds][numOutcomes][3];
     
     display("done.\n");
     
@@ -116,188 +151,217 @@ public class PerceptronTrainer {
     display("\t    Number of Outcomes: " + numOutcomes + "\n");
     display("\t  Number of Predicates: " + numPreds + "\n");
     
-
-    params = new MutableContext[numPreds];
-    if (useAverage) averageParams = new MutableContext[numPreds];
-    evalParams = new EvalParameters(params,numOutcomes);
-    
-    int[] allOutcomesPattern= new int[numOutcomes];
-    for (int oi = 0; oi < numOutcomes; oi++) {
-      allOutcomesPattern[oi] = oi;
-    }
-    
-    for (int pi = 0; pi < numPreds; pi++) {
-      params[pi] = new MutableContext(allOutcomesPattern,new double[numOutcomes]);
-      if (useAverage) averageParams[pi] = new MutableContext(allOutcomesPattern,new double[numOutcomes]);
-      for (int aoi=0;aoi<numOutcomes;aoi++) {
-        params[pi].setParameter(aoi, 0.0);
-        if (useAverage) averageParams[pi].setParameter(aoi, 0.0);
-      }
-    }
-    modelDistribution = new double[numOutcomes];
-
     display("Computing model parameters...\n");
-    findParameters(iterations);
+
+    MutableContext[] finalParameters = findParameters(iterations, useAverage);
+
     display("...done.\n");
 
     /*************** Create and return the model ******************/
+    return new PerceptronModel(finalParameters, predLabels, outcomeLabels);
+  }
+  
+  private MutableContext[] findParameters (int iterations, boolean useAverage) {
+
+    display("Performing " + iterations + " iterations.\n");
+
+    int[] allOutcomesPattern= new int[numOutcomes];
+    for (int oi = 0; oi < numOutcomes; oi++) 
+      allOutcomesPattern[oi] = oi;
+
+    /** Stores the estimated parameter value of each predicate during iteration. */
+    MutableContext[] params = new MutableContext[numPreds];
+    for (int pi = 0; pi < numPreds; pi++) {
+      params[pi] = new MutableContext(allOutcomesPattern,new double[numOutcomes]);
+      for (int aoi=0;aoi<numOutcomes;aoi++)
+        params[pi].setParameter(aoi, 0.0);
+    }
+
+    EvalParameters evalParams = new EvalParameters(params,numOutcomes);
+  
+    /** Stores the sum of parameter values of each predicate over many iterations. */
+    MutableContext[] summedParams = new MutableContext[numPreds];
     if (useAverage) {
-      return new PerceptronModel(averageParams, predLabels, outcomeLabels);
+      for (int pi = 0; pi < numPreds; pi++) {
+        summedParams[pi] = new MutableContext(allOutcomesPattern,new double[numOutcomes]);
+        for (int aoi=0;aoi<numOutcomes;aoi++)
+          summedParams[pi].setParameter(aoi, 0.0);
+      }
     }
-    else {
-      return new PerceptronModel(params, predLabels, outcomeLabels);
+
+    // Keep track of the previous three accuracies. The difference of
+    // the mean of these and the current training set accuracy is used
+    // with tolerance to decide whether to stop.
+    double prevAccuracy1 = 0.0;
+    double prevAccuracy2 = 0.0;
+    double prevAccuracy3 = 0.0;
+
+    // A counter for the denominator for averaging.
+    int numTimesSummed = 0;
+
+    double stepsize = 1;
+    for (int i = 1; i <= iterations; i++) {
+
+      // Decrease the stepsize by a small amount.
+      if (stepSizeDecrease != null)
+        stepsize *= 1 - stepSizeDecrease;
+      
+      displayIteration(i);
+
+      int numCorrect = 0;
+
+      for (int ei = 0; ei < numUniqueEvents; ei++) {
+        int targetOutcome = outcomeList[ei];
+
+        for (int ni=0; ni<this.numTimesEventsSeen[ei]; ni++) {
+
+          // Compute the model's prediction according to the current parameters.
+          double[] modelDistribution = new double[numOutcomes];
+          if (values != null)
+            PerceptronModel.eval(contexts[ei], values[ei], modelDistribution, evalParams, false);
+          else
+            PerceptronModel.eval(contexts[ei], null, modelDistribution, evalParams, false);
+
+          int maxOutcome = maxIndex(modelDistribution);
+
+          // If the predicted outcome is different from the target
+          // outcome, do the standard update: boost the parameters
+          // associated with the target and reduce those associated
+          // with the incorrect predicted outcome.
+          if (maxOutcome != targetOutcome) {
+            for (int ci = 0; ci < contexts[ei].length; ci++) {
+              int pi = contexts[ei][ci];
+              if (values == null) {
+                params[pi].updateParameter(targetOutcome, stepsize);
+                params[pi].updateParameter(maxOutcome, -stepsize);
+              } else {
+                params[pi].updateParameter(targetOutcome, stepsize*values[ei][ci]);
+                params[pi].updateParameter(maxOutcome, -stepsize*values[ei][ci]);
+              }
+            }
+          }
+
+          // Update the counts for accuracy.
+          if (maxOutcome == targetOutcome) 
+            numCorrect++;
+        }
+      }
+
+      // Calculate the training accuracy and display.
+      double trainingAccuracy = (double) numCorrect / numEvents;
+      if (i < 10 || (i%10) == 0)
+        display(". (" + numCorrect + "/" + numEvents+") " + trainingAccuracy + "\n");
+          
+      // TODO: Make averaging configurable !!!
+      
+      boolean doAveraging;
+      
+      if (useAverage && useSkippedlAveraging && (i < 20 || isPerfectSquare(i))) {
+        doAveraging = true;
+      }
+      else if (useAverage) {
+        doAveraging = true;
+      }
+      else {
+        doAveraging = false;
+      }
+      
+      if (doAveraging) {
+        numTimesSummed++;
+        for (int pi = 0; pi < numPreds; pi++) 
+          for (int aoi=0;aoi<numOutcomes;aoi++)
+            summedParams[pi].updateParameter(aoi, params[pi].getParameters()[aoi]);
+      }
+
+      // If the tolerance is greater than the difference between the
+      // current training accuracy and all of the previous three
+      // training accuracies, stop training.
+      if (Math.abs(prevAccuracy1-trainingAccuracy) < tolerance
+          && Math.abs(prevAccuracy2-trainingAccuracy) < tolerance
+          && Math.abs(prevAccuracy3-trainingAccuracy) < tolerance) {
+        display("Stopping: change in training set accuracy less than " + tolerance + "\n");
+        break;
+      }
+      
+      // Update the previous training accuracies.
+      prevAccuracy1 = prevAccuracy2;
+      prevAccuracy2 = prevAccuracy3;
+      prevAccuracy3 = trainingAccuracy;
     }
+
+    // Output the final training stats.
+    trainingStats(evalParams);
+
+    // Create averaged parameters
+    if (useAverage) {
+      for (int pi = 0; pi < numPreds; pi++) 
+        for (int aoi=0;aoi<numOutcomes;aoi++)
+          summedParams[pi].setParameter(aoi, summedParams[pi].getParameters()[aoi]/numTimesSummed);
+
+      return summedParams;
+
+    } else {
+
+      return params;
+
+    }
+        
+  }
+  
+  private double trainingStats (EvalParameters evalParams) {
+    int numCorrect = 0;
+
+    for (int ei = 0; ei < numUniqueEvents; ei++) {
+      for (int ni=0;ni<this.numTimesEventsSeen[ei];ni++) {
+
+        double[] modelDistribution = new double[numOutcomes];
+
+        if (values != null)
+          PerceptronModel.eval(contexts[ei], values[ei], modelDistribution, evalParams,false);
+        else
+          PerceptronModel.eval(contexts[ei], null, modelDistribution, evalParams, false);
+
+        int max = maxIndex(modelDistribution);
+        if (max == outcomeList[ei])
+          numCorrect++;
+      }
+    }
+    double trainingAccuracy = (double) numCorrect / numEvents;
+    display("Stats: (" + numCorrect + "/" + numEvents+") " + trainingAccuracy + "\n");
+    return trainingAccuracy;
   }
 
-  private void display(String s) {
+
+  private int maxIndex (double[] values) {
+    int max = 0;
+    for (int i = 1; i < values.length; i++)
+      if (values[i] > values[max])
+        max = i;
+    return max;
+  }
+
+  private void display (String s) {
     if (printMessages)
       System.out.print(s);
   }
-  
-  private void findParameters(int iterations) {
-    display("Performing " + iterations + " iterations.\n");
-    for (int i = 1; i <= iterations; i++) {
-      if (i < 10)
-        display("  " + i + ":  ");
-      else if (i < 100)
-        display(" " + i + ":  ");
-      else
-        display(i + ":  ");
-      nextIteration(i);
-    }
-    if (useAverage) {
-      trainingStats(averageParams);
-    }
-    else {
-      trainingStats(params);
-    }
-    // kill a bunch of these big objects now that we don't need them
-    numTimesEventsSeen = null;
-    contexts = null;
+
+  private void displayIteration (int i) {
+    if (i > 10 && (i%10) != 0)
+      return;
+
+    if (i < 10)
+      display("  " + i + ":  ");
+    else if (i < 100)
+      display(" " + i + ":  ");
+    else
+      display(i + ":  ");
   }
-  
-  /* Compute one iteration of Perceptron and return log-likelihood.*/
-  private void nextIteration(int iteration) {
-    iteration--; //move to 0-based index
-    int numCorrect = 0;
-    int oei = 0;
-    for (int ei = 0; ei < numUniqueEvents; ei++,oei++) {
-      //Arrays.sort(contexts[ei]); only needed for debugging
-      for (int ni=0;ni<this.numTimesEventsSeen[ei];ni++) {
-        //System.err.print("contexts["+ei+"]=");for (int ci=0;ci<contexts[ei].length;ci++) { System.err.print(" "+contexts[ei][ci]+" ");} System.err.println();
-        for (int oi = 0; oi < numOutcomes; oi++) {
-          modelDistribution[oi] = 0;
-        }
-        if (values != null) {
-          PerceptronModel.eval(contexts[ei], values[ei], modelDistribution, evalParams,false);
-        }
-        else {
-          PerceptronModel.eval(contexts[ei], null, modelDistribution, evalParams, false);
-        }
-        int max = 0;
-        for (int oi = 1; oi < numOutcomes; oi++) {
-          if (modelDistribution[oi] > modelDistribution[max]) {
-            max = oi;
-          }
-        }
-        boolean correct = max == outcomeList[oei]; 
-        if (correct) {
-          numCorrect ++;
-        }
-        for (int oi = 0;oi<numOutcomes;oi++) {
-          if (oi == outcomeList[oei]) {
-            if (modelDistribution[oi] <= 0) {
-              for (int ci = 0; ci < contexts[ei].length; ci++) {
-                int pi = contexts[ei][ci];
-                if (values == null) {
-                  params[pi].updateParameter(oi, 1);
-                }
-                else {
-                  params[pi].updateParameter(oi, values[ei][ci]);
-                }
-                if (useAverage) {
-                  if (updates[pi][oi][VALUE] != 0) {
-                    averageParams[pi].updateParameter(oi,updates[pi][oi][VALUE]*(numEvents*(iteration-updates[pi][oi][ITER])+(ei-updates[pi][oi][EVENT])));
-                    //System.err.println("p avp["+pi+"]."+oi+"="+averageParams[pi].getParameters()[oi]);
-                  }
-                  //System.err.println("p updates["+pi+"]["+oi+"]=("+updates[pi][oi][ITER]+","+updates[pi][oi][EVENT]+","+updates[pi][oi][VALUE]+") + ("+iteration+","+ei+","+params[pi].getParameters()[oi]+") -> "+averageParams[pi].getParameters()[oi]);
-                  updates[pi][oi][VALUE] = (int) params[pi].getParameters()[oi];
-                  updates[pi][oi][ITER] = iteration;
-                  updates[pi][oi][EVENT] = ei;
-                }
-              }
-            }
-          }
-          else {
-            if (modelDistribution[oi] > 0) {
-              for (int ci = 0; ci < contexts[ei].length; ci++) {
-                int pi = contexts[ei][ci];
-                if (values == null) {
-                  params[pi].updateParameter(oi, -1);
-                }
-                else {
-                  params[pi].updateParameter(oi, -1*values[ei][ci]);
-                }
-                if (useAverage) {
-                  if (updates[pi][oi][VALUE] != 0) {
-                    averageParams[pi].updateParameter(oi,updates[pi][oi][VALUE]*(numEvents*(iteration-updates[pi][oi][ITER])+(ei-updates[pi][oi][EVENT])));
-                    //System.err.println("d avp["+pi+"]."+oi+"="+averageParams[pi].getParameters()[oi]);
-                  }
-                  //System.err.println(ei+" d updates["+pi+"]["+oi+"]=("+updates[pi][oi][ITER]+","+updates[pi][oi][EVENT]+","+updates[pi][oi][VALUE]+") + ("+iteration+","+ei+","+params[pi].getParameters()[oi]+") -> "+averageParams[pi].getParameters()[oi]);
-                  updates[pi][oi][VALUE] = (int) params[pi].getParameters()[oi];
-                  updates[pi][oi][ITER] = iteration;
-                  updates[pi][oi][EVENT] = ei;
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-    //finish average computation
-    double totIterations = (double) iterations*numEvents;
-    if (useAverage && iteration == iterations-1) {
-      for (int pi = 0; pi < numPreds; pi++) {
-        double[] predParams = averageParams[pi].getParameters();
-        for (int oi = 0;oi<numOutcomes;oi++) {
-          if (updates[pi][oi][VALUE] != 0) {
-            predParams[oi] +=  updates[pi][oi][VALUE]*(numEvents*(iterations-updates[pi][oi][ITER])-updates[pi][oi][EVENT]);
-          }
-          if (predParams[oi] != 0) {
-            predParams[oi] /=totIterations;  
-            averageParams[pi].setParameter(oi, predParams[oi]);
-            //System.err.println("updates["+pi+"]["+oi+"]=("+updates[pi][oi][ITER]+","+updates[pi][oi][EVENT]+","+updates[pi][oi][VALUE]+") + ("+iterations+","+0+","+params[pi].getParameters()[oi]+") -> "+averageParams[pi].getParameters()[oi]);
-          }
-        }
-      }
-    }
-    display(". ("+numCorrect+"/"+numEvents+") "+((double) numCorrect / numEvents) + "\n");
-  }  
-  
-  private void trainingStats(MutableContext[] params) {
-    int numCorrect = 0;
-    for (int ei = 0; ei < numUniqueEvents; ei++) {
-      for (int ni=0;ni<this.numTimesEventsSeen[ei];ni++) {
-        for (int oi = 0; oi < numOutcomes; oi++) {
-          modelDistribution[oi] = 0;
-        }
-        if (values != null) {
-          PerceptronModel.eval(contexts[ei], values[ei], modelDistribution, evalParams,false);
-        }
-        else {
-          PerceptronModel.eval(contexts[ei], null, modelDistribution, evalParams, false);
-        }
-        int max = 0;
-        for (int oi = 1; oi < numOutcomes; oi++) {
-          if (modelDistribution[oi] > modelDistribution[max]) {
-            max = oi;
-          }
-        }
-        if (max == outcomeList[ei]) {
-          numCorrect ++;
-        }
-      }
-    }
-    display(". ("+numCorrect+"/"+numEvents+") "+((double) numCorrect / numEvents) + "\n");
+
+  // See whether a number is a perfect square. Inefficient, but fine
+  // for our purposes.
+  private final static boolean isPerfectSquare (int n) {
+    int root = (int)Math.sqrt(n);
+    return root*root == n;
   }
+
 }

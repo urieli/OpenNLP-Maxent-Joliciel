@@ -21,28 +21,25 @@ package opennlp.model;
 
 /**
  * An interface for objects which read events during training.
- *
- * @author      Jason Baldridge
- * @version $Revision: 1.2 $, $Date: 2010/09/06 08:02:18 $
  */
 public interface EventCollector {
 
-    /**
-     * Return the events which this EventCollector has gathered.  It must get
-     * its data from a constructor.
-     *
-     * @return the events that this EventCollector has gathered
-     */
-    public Event[] getEvents();
+  /**
+   * Return the events which this EventCollector has gathered. It must get its
+   * data from a constructor.
+   * 
+   * @return the events that this EventCollector has gathered
+   */
+  public Event[] getEvents();
 
-    /**
-     * Return the events which this EventCollector has gathered based on
-     * whether we wish to train a model or evaluate one based on those
-     * events.
-     * 
-     * @param evalMode true if we are evaluating based on the events, false if
-     *                 we are training.
-     * @return the events that this EventCollector has gathered
-     */
-    public Event[] getEvents(boolean evalMode);
+  /**
+   * Return the events which this EventCollector has gathered based on whether
+   * we wish to train a model or evaluate one based on those events.
+   * 
+   * @param evalMode
+   *          true if we are evaluating based on the events, false if we are
+   *          training.
+   * @return the events that this EventCollector has gathered
+   */
+  public Event[] getEvents(boolean evalMode);
 }

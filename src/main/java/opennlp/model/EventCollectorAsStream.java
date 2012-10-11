@@ -24,26 +24,23 @@ package opennlp.model;
  * for Maxent 1.2.  For efficiency, it would be best to convert your
  * EventCollector into a EventStream directly, but this will allow your
  * application to work with Maxent 1.2 with very little recoding.
- *
- * @author      Jason Baldridge
- * @version     $Revision: 1.2 $, $Date: 2010/09/06 08:02:18 $
  */
 public final class EventCollectorAsStream extends AbstractEventStream {
-    final Event[] events;
-    final int numEvents;
-    int index = 0;
-    
-    public EventCollectorAsStream (EventCollector ec) {
-	events = ec.getEvents(false);
-	numEvents = events.length;
-    }
-    
-    public Event next () {
-      return events[index++];
-    }
-    
-    public boolean hasNext () {
-      return (index < numEvents);
-    }
- 
+  final Event[] events;
+  final int numEvents;
+  int index = 0;
+
+  public EventCollectorAsStream(EventCollector ec) {
+    events = ec.getEvents(false);
+    numEvents = events.length;
+  }
+
+  public Event next() {
+    return events[index++];
+  }
+
+  public boolean hasNext() {
+    return (index < numEvents);
+  }
+
 }

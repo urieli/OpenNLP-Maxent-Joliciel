@@ -25,19 +25,17 @@ import opennlp.model.BinaryFileDataReader;
 
 /**
  * A reader for GIS models stored in binary format.
- *
- * @author      Jason Baldridge
- * @version     $Revision: 1.2 $, $Date: 2010/09/06 08:02:18 $
  */
 public class BinaryGISModelReader extends GISModelReader {
 
-    /**
-     * Constructor which directly instantiates the DataInputStream containing
-     * the model contents.
-     *
-     * @param dis The DataInputStream containing the model information.
-     */
-    public BinaryGISModelReader (DataInputStream dis) {
-      super(new BinaryFileDataReader(dis));
-    }
+  /**
+   * Constructor which directly instantiates the DataInputStream containing the
+   * model contents.
+   * 
+   * @param dis
+   *          The DataInputStream containing the model information.
+   */
+  public BinaryGISModelReader(DataInputStream dis) {
+    super(new BinaryFileDataReader(dis));
+  }
 }

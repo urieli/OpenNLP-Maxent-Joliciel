@@ -27,39 +27,32 @@ import java.io.Reader;
  * This DataStream implementation will take care of reading a plain text file
  * and returning the Strings between each new line character, which is what
  * many Maxent applications need in order to create EventStreams.
- *
- * @author      Jason Baldridge
- * @version     $Revision: 1.2 $, $Date: 2010/09/06 08:02:18 $
- *
  */
 public class PlainTextByLineDataStream implements DataStream {
-    BufferedReader dataReader;
-    String next;
-    
-    public PlainTextByLineDataStream (Reader dataSource) {
-	dataReader = new BufferedReader(dataSource);
-	try {
-	    next = dataReader.readLine();
-	}
-	catch (IOException e) {
-	    e.printStackTrace();
-	}
-    }
-    
-    public Object nextToken () {
-	String current = next;
-	try {
-	    next = dataReader.readLine();
-	}
-	catch (Exception e) {
-	    e.printStackTrace();
-	}
-	return current;
-    }
+  BufferedReader dataReader;
+  String next;
 
-    public boolean hasNext () {
-	return next != null;
+  public PlainTextByLineDataStream(Reader dataSource) {
+    dataReader = new BufferedReader(dataSource);
+    try {
+      next = dataReader.readLine();
+    } catch (IOException e) {
+      e.printStackTrace();
     }
- 
+  }
+
+  public Object nextToken() {
+    String current = next;
+    try {
+      next = dataReader.readLine();
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+    return current;
+  }
+
+  public boolean hasNext() {
+    return next != null;
+  }
 }
 

@@ -22,14 +22,19 @@ package opennlp.maxent;
 /**
  * A simple class which is essentially an Integer which is mutable via
  * incrementation. 
- *
- * @author      Jason Baldridge
- * @version $Revision: 1.2 $, $Date: 2010/09/06 08:02:18 $
  */
 public class Counter {
-    private int counter = 1;
-    public void increment() { counter++; }
-    public int intValue() { return counter; }
-    public boolean passesCutoff(int c) { return counter >= c; }
+  private int counter = 1;
 
+  public void increment() {
+    counter++;
+  }
+
+  public int intValue() {
+    return counter;
+  }
+
+  public boolean passesCutoff(int c) {
+    return counter >= c;
+  }
 }

@@ -27,17 +27,12 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-
 /**
  * An indexer for maxent model data which handles cutoffs for uncommon
  * contextual predicates and provides a unique integer index for each of the
  * predicates and maintains event values.  
- * @author Tom Morton
  */
 public class OnePassRealValueDataIndexer extends OnePassDataIndexer {
-    private static final Log LOG = LogFactory.getLog(OnePassRealValueDataIndexer.class);
 
   float[][] values;
   
@@ -114,7 +109,7 @@ public class OnePassRealValueDataIndexer extends OnePassDataIndexer {
         eventsToCompare.add(ce);
       }
       else {
-        LOG.debug("Dropped event "+ev.getOutcome()+":"+Arrays.asList(ev.getContext()));
+        System.err.println("Dropped event "+ev.getOutcome()+":"+Arrays.asList(ev.getContext()));
       }
 //    recycle the TIntArrayList
       indexedContext.clear();
