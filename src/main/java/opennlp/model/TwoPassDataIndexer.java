@@ -94,10 +94,10 @@ public class TwoPassDataIndexer extends AbstractDataIndexer{
       LOG.info("done.");
 
       if (sort) { 
-        System.out.print("Sorting and merging events... ");
+        LOG.info("Sorting and merging events... ");
       }
       else {
-        System.out.print("Collecting events... ");
+        LOG.info("Collecting events... ");
       }
       sortAndMerge(eventsToCompare,sort);
       LOG.info("Done indexing.");

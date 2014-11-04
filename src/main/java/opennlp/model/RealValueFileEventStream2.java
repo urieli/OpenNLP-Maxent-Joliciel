@@ -88,8 +88,8 @@ public class RealValueFileEventStream2 extends  AbstractEventStream {
     String outcome = st.nextToken();
     if (outcome.equals("&null;"))
     	outcome = "";
-    else if (outcome.equals("&space;"))
-    	outcome = " ";
+    else if (outcome.indexOf('·')>=0)
+    	outcome = outcome.replace('·', ' ');
     
     int count = st.countTokens();
     // Assaf update: read real values from file
@@ -132,8 +132,8 @@ public class RealValueFileEventStream2 extends  AbstractEventStream {
     String outcome = event.getOutcome();
     if (outcome.length()==0)
     	outcome = "&null;";
-    else if (outcome.equals(" "))
-    	outcome = "&space;";
+    else if (outcome.indexOf(' ')>=0)
+    	outcome = outcome.replace(' ', '·');
     sb.append(outcome);
     String[] context = event.getContext();
     // Assaf: write real values to file

@@ -1,5 +1,5 @@
 <!-- this file uses Apache Ant 1.5.3 beta 1 -->
-<project name="maxent-3.0.2-joliciel-0.0.1" default="about" basedir=".">
+<project name="maxent-3.0.2-joliciel-0.0.3" default="about" basedir=".">
 	<target name="about">
 		<echo message="try targets clean, etc." />
 	</target>
